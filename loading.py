@@ -5,4 +5,4 @@ import numpy as np
 
 with napari.gui_qt():
     viewer = napari.Viewer()
-    viewer.open("./napari_tracks/_tests/tracks.csv")
+    viewer.open("/media/draga/Elements/CellTracking/tracks.csv")

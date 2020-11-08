@@ -9,7 +9,7 @@ def get_tracks(
     min_frames=0,
     id_col="particle",
     time_col="frame",
-    coord_cols=("x", "y", "z"),
+    coord_cols=("z", "y", "x"),
     scale=(1, 1, 1),
     w_prop=True,
 ):
@@ -117,12 +117,22 @@ def reader_function(path):
     layer_list = []
     for path in paths:
         tracks_df = pd.read_csv(path)
-        tracks, properties = get_tracks(tracks_df)
-        add_kwargs = {
-            'properties':properties,
-            'color_by':'particle',
-            'colormap': 'viridis',
-        }
+        df_cols = list(tracks_df.columns.values)
+        # this is a btrack df
+        if 'parent' in df_cols:
+            tracks = get_tracks(tracks_df, id_col='parent', time_col='t', w_prop=False)
+            add_kwargs = {
+                'colormap': 'viridis'
+            }
+        # this is a trackpy df
+        else:
+            tracks, properties = get_tracks(tracks_df)
+            add_kwargs = {
+                'properties':properties,
+                'color_by':'particle',
+                'colormap': 'viridis',
+            }
+        print(tracks)
         layer_list.append(
             (tracks, add_kwargs, layer_type)
         )
