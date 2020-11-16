@@ -8,7 +8,7 @@ import pandas as pd
 
 def get_tracks(
     df,
-    min_frames=20,
+    min_frames=0,
     id_col="particle",
     time_col="frame",
     coord_cols=("z", "y", "x"),
