@@ -115,7 +115,6 @@ def reader_function(path):
         Both "meta", and "layer_type" are optional. napari will default to
         layer_type=="image" if not provided
     """
-    print(path)
     # handle folder of csvs, or csv, or list of csvs
     if os.path.isdir(path):
         path = sorted(glob.glob(os.path.join(path,'*.csv')))
@@ -134,7 +133,7 @@ def reader_function(path):
         for i, tab in enumerate(tables):
             if i == position_table_idx:
                 continue
-            tab_clean = tab.drop(cols_to_remove, errors='ignore')
+            tab_clean = tab.drop(columns=cols_to_remove, errors='ignore')
             if 'Time' in tab.columns:
                 table = table.merge(tab_clean, on=['TrackID', 'Time'], how='left')
             elif 'TrackID' not in tab_clean.columns:
