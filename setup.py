@@ -26,7 +26,7 @@ use_scm = {"write_to": "napari_tracks/_version.py"}
 
 setup(
     name='napari-tracks',
-    version='0.0.1',
+    version='0.0.2',
     author='Draga Doncila Pop',
     author_email='ddon0001@student.monash.edu',
     license='BSD-3',
