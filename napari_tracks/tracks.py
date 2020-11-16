@@ -1,3 +1,5 @@
+import os
+import glob
 import numpy as np
 from napari_plugin_engine import napari_hook_implementation
 import time
@@ -85,11 +87,14 @@ def napari_get_reader(path):
         return reader_function if all([pth.endswith('.csv') for pth in path]) else None
 
     # just one string, must be CSV
-    if not path.endswith(".csv"):
-        return None
+    if path.endswith(".csv"):
+        return reader_function
 
-    # otherwise we return the *function* that can read ``path``.
-    return reader_function
+    # directory
+    if os.path.isdir(path) and any(p.endswith('.csv') for p in os.listdir(path)):
+        return reader_function
+
+    return None
 
 
 def reader_function(path):
@@ -110,31 +115,66 @@ def reader_function(path):
         Both "meta", and "layer_type" are optional. napari will default to
         layer_type=="image" if not provided
     """
-    # handle both a string and a list of strings
+    # handle folder of csvs, or csv, or list of csvs
+    if os.path.isdir(path):
+        path = sorted(glob.glob(os.path.join(path,'*.csv')))
     paths = [path] if isinstance(path, str) else path
     
     layer_type = 'tracks'
     layer_list = []
+    # imaris format
+    if len(paths) > 1 and any(path.endswith('Position.csv') for path in paths):
+        tables = [pd.read_csv(path, header=0, skiprows=(0, 1, 2))
+                    for path in paths]
+        position_table_idx = [i for i, p in enumerate(paths)
+                              if p.endswith('Position.csv')][0]
+        cols_to_remove = ['Unit', 'Category', 'Collection', 'Unnamed: 9', 'Unnamed: 6', 'Unnamed: 4']
+        table = tables[position_table_idx].drop(columns=cols_to_remove, errors='ignore').rename(columns={'ID': 'SpotID'})
+        for i, tab in enumerate(tables):
+            if i == position_table_idx:
+                continue
+            tab_clean = tab.drop(columns=cols_to_remove, errors='ignore')
+            if 'Time' in tab.columns:
+                table = table.merge(tab_clean, on=['TrackID', 'Time'], how='left')
+            elif 'TrackID' not in tab_clean.columns:
+                table = table.merge(tab_clean.rename(columns={'ID': 'TrackID'}), on=['TrackID'], how='left')
+        table['Time'] -= 1
+        tracks, properties = get_tracks(
+            table,
+            id_col='TrackID',
+            time_col='Time',
+            coord_cols=[f'Position {c}' for c in 'ZYX'],
+            )
+        add_kwargs = {
+            'properties': properties,
+            'colormap': 'viridis',
+            'color_by': 'TrackID'
+        }
+        layer_list.append(
+            (tracks, add_kwargs, layer_type)
+        )
+        return layer_list
+    
     for path in paths:
         tracks_df = pd.read_csv(path)
         df_cols = list(tracks_df.columns.values)
         # this is a btrack df
         if 'parent' in df_cols:
-            tracks = get_tracks(tracks_df, id_col='parent', time_col='t', w_prop=False)
+            tracks, properties = get_tracks(tracks_df, id_col='parent', time_col='t')
             add_kwargs = {
-                'colormap': 'viridis'
+                'colormap': 'viridis',
+                'properties': properties,
+                'color_by': 'parent'
             }
         # this is a trackpy df
-        else:
+        elif 'particle' in df_cols:
             tracks, properties = get_tracks(tracks_df)
             add_kwargs = {
                 'properties':properties,
                 'color_by':'particle',
                 'colormap': 'viridis',
             }
-        print(tracks)
         layer_list.append(
             (tracks, add_kwargs, layer_type)
         )
-        
     return layer_list
